@@ -3,12 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Realm Apex — Summit Series EU Week 4</title>
+  <title>Realm Apex — Summit Series EU Week 5</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap">
   <link rel="stylesheet" href="https://unpkg.com/tailwindcss@1.3.0/dist/tailwind.min.css">
   <style>
     html {
       font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji" !important;
+    }
+    [v-cloak] { display: none; }
+    table tr {counter-increment: rowNumber;}
+    table thead tr th:first-child::before {content: "#";min-width: 1em;margin-right: 0.5em;display: inline-block;}
+    table tr td:first-child::before {content: counter(rowNumber);min-width: 1em;margin-right: 0.5em;display: inline-block;}
+    .animate-spin	{animation: spin 1s linear infinite;}
+    @keyframes spin {
+      from {
+        transform: rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg);
+      }
     }
   </style>
 </head>
@@ -16,8 +29,40 @@
   <div id="app">
 
     <div class="container mx-auto px-6 lg:px-8">
-      <h1 class="mt-3 mb-6 font-thin text-xl text-gray-200 px-3 sm:px-0 xl:text-3xl" x-text="title">Summit Series Invitational Standings — Summit Series EU Week 4</h1>
-      <div class="flex flex-col md:flex-row">
+      <h1 class="mt-3 font-thin text-xl text-gray-200 px-3 sm:px-0 xl:text-3xl" x-text="title">Realm Apex — Summit Series EU Week 5</h1>
+      <p
+        class="mb-6 font-thin text-gray-600"
+        v-if="!initial"
+        v-cloak
+      >
+        Updates every 3 minutes
+      </p>
+
+      <div
+        class="md:min-w-full text-white text-center"
+        v-if="teams.length == 0 && nodata"
+        v-cloak
+      >
+        No data available at the current time
+      </div>
+
+      <div
+        class="loader loader-main w-full flex flex-col items-center pt-4 opacity-50"
+        v-if="initial"
+        v-cloak
+      >
+        <svg class="animate-spin h-32 w-32 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span class="text-gray-400 text-xl mt-4">Loading data</span>
+      </div>
+
+      <div
+        class="flex flex-col md:flex-row"
+        v-if="teams.length != 0"
+        v-cloak
+      >
         <div class="w-full md:w-1/5">
           <ul class="mb-4 md:mr-4 rounded border border-gray-700 overflow-hidden divide-y divide-gray-700 text-gray-600">
             <li>
@@ -38,6 +83,19 @@
               >Game {{ index+1 }}</a>
             </li>
           </ul>
+          <a class="rounded border border-gray-700 block px-4 py-2 md:mr-4 mb-4 text-gray-500 hover:text-white" target="_blank" href="https://liquipedia.net/apexlegends/Realm/Summit_Series/2020/Week_5/Europe">Liquipedia Page</a>
+
+          <div
+            class="loading loading-side flex align-center"
+            v-if="!initial && loading"
+          >
+            <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="ml-3 -mt-px text-gray-600">Refreshing data...</span>
+          </div>
+
         </div>
         <div class="w-full md:w-4/5 mb-5">
           <div class="overflow-x-auto border border-gray-700 sm:rounded">
@@ -92,21 +150,34 @@
         games: [],
         teams: [],
         current: -1,
+        initial: true,
+        nodata: false,
+        loading: false,
         timer: ''
       },
       created() {
         this.fetchGames();
-        this.timer = setInterval(this.fetchGames, 1800000);
+        this.timer = setInterval(this.fetchGames, 180000);
       },
       methods: {
         async fetchGames() {
-          const response = await fetch('https://smsserver.apirealm.info/apex-api.php?id=18');
+          this.loading = true
+          const response = await fetch('https://smsserver.apirealm.info/apex-api.php?id=25');
           // const response = await fetch('http://127.0.0.1:5500/realm-apex-18.json');
           const data = await response.json();
-          this.realm = data;
-          this.games = Object.entries(data.team_match_points);
-          this.teams = mapPoints(Object.entries(data.team_points));
-          this.current = -1;
+          if (data.error == "nodata") {
+            this.nodata = true
+            this.initial = false
+            this.loading = false
+          }
+          if (!data.error) {
+            this.realm = data;
+            this.games = Object.entries(data.team_match_points);
+            this.teams = mapPoints(Object.entries(data.team_points));
+            this.current = -1;
+            this.initial = false
+            this.loading = false
+          }
         },
         cancelAutoUpdate () {
           clearInterval(this.timer)
